@@ -1,0 +1,4 @@
+interface:
+  display_name: "Modal Autoresearch"
+  short_description: "Modal workflow for remote autoresearch runs"
+  default_prompt: "Use $modal-autoresearch to work on this repo's Modal-backed prepare/train workflow or debug Modal execution issues."

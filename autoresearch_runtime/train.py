@@ -1,7 +1,7 @@
 """
 Autoresearch pretraining script. Single-GPU, single-file.
 Cherry-picked and simplified from nanochat.
-Usage: uv run train.py
+Usage: run from `autoresearch_runtime/` with `uv run train.py`
 """
 
 import os
@@ -24,6 +24,19 @@ repo = "varunneal/flash-attention-3" if cap == (9, 0) else "kernels-community/fl
 fa3 = get_kernel(repo).flash_attn_interface
 
 from prepare import MAX_SEQ_LEN, TIME_BUDGET, Tokenizer, make_dataloader, evaluate_bpb
+
+BF16_PEAK_FLOPS = {
+    "H100": 989.5e12,
+    "L40S": 362.05e12,
+}
+
+
+def get_peak_bf16_flops(device_name):
+    """Return the BF16 peak FLOPS reference used for MFU reporting on known GPUs."""
+    for gpu_name, peak_flops in BF16_PEAK_FLOPS.items():
+        if gpu_name in device_name:
+            return peak_flops
+    return None
 
 # ---------------------------------------------------------------------------
 # GPT Model
@@ -448,7 +461,7 @@ FINAL_LR_FRAC = 0.0     # final LR as fraction of initial
 
 # Model size
 DEPTH = 8               # number of transformer layers
-DEVICE_BATCH_SIZE = 128  # per-device batch size (reduce if OOM)
+DEVICE_BATCH_SIZE = 64  # per-device batch size (reduce if OOM)
 
 # ---------------------------------------------------------------------------
 # Setup: tokenizer, model, optimizer, dataloader
@@ -456,11 +469,18 @@ DEVICE_BATCH_SIZE = 128  # per-device batch size (reduce if OOM)
 
 t_start = time.time()
 torch.manual_seed(42)
+visible_gpus = torch.cuda.device_count()
+assert visible_gpus == 1, f"Expected exactly one visible GPU, found {visible_gpus}"
 torch.cuda.manual_seed(42)
 torch.set_float32_matmul_precision("high")
 device = torch.device("cuda")
 autocast_ctx = torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16)
-H100_BF16_PEAK_FLOPS = 989.5e12
+device_name = torch.cuda.get_device_name()
+peak_bf16_flops = get_peak_bf16_flops(device_name)
+if peak_bf16_flops is None:
+    print(f"MFU reference unavailable for GPU: {device_name} (reporting 0.0%)")
+else:
+    print(f"MFU reference GPU: {device_name}")
 
 tokenizer = Tokenizer.from_directory()
 vocab_size = tokenizer.get_vocab_size()
@@ -584,7 +604,10 @@ while True:
     debiased_smooth_loss = smooth_train_loss / (1 - ema_beta**(step + 1))
     pct_done = 100 * progress
     tok_per_sec = int(TOTAL_BATCH_SIZE / dt)
-    mfu = 100 * num_flops_per_token * TOTAL_BATCH_SIZE / dt / H100_BF16_PEAK_FLOPS
+    if peak_bf16_flops is None:
+        mfu = 0.0
+    else:
+        mfu = 100 * num_flops_per_token * TOTAL_BATCH_SIZE / dt / peak_bf16_flops
     remaining = max(0, TIME_BUDGET - total_training_time)
 
     print(f"\rstep {step:05d} ({pct_done:.1f}%) | loss: {debiased_smooth_loss:.6f} | lrm: {lrm:.2f} | dt: {dt*1000:.0f}ms | tok/sec: {tok_per_sec:,} | mfu: {mfu:.1f}% | epoch: {epoch} | remaining: {remaining:.0f}s    ", end="", flush=True)
@@ -615,7 +638,10 @@ with autocast_ctx:
 # Final summary
 t_end = time.time()
 startup_time = t_start_training - t_start
-steady_state_mfu = 100 * num_flops_per_token * TOTAL_BATCH_SIZE * (step - 10) / total_training_time / H100_BF16_PEAK_FLOPS if total_training_time > 0 else 0
+if peak_bf16_flops is None or total_training_time <= 0:
+    steady_state_mfu = 0.0
+else:
+    steady_state_mfu = 100 * num_flops_per_token * TOTAL_BATCH_SIZE * (step - 10) / total_training_time / peak_bf16_flops
 peak_vram_mb = torch.cuda.max_memory_allocated() / 1024 / 1024
 
 print("---")

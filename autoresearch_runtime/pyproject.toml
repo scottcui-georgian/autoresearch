@@ -1,0 +1,23 @@
+[project]
+name = "autoresearch-runtime"
+version = "0.1.0"
+description = "Agent-facing runtime for autoresearch experiments"
+requires-python = ">=3.10"
+dependencies = [
+    "kernels>=0.11.7",
+    "pyarrow>=21.0.0",
+    "requests>=2.32.0",
+    "rustbpe>=0.1.0",
+    "tiktoken>=0.11.0",
+    "torch==2.9.1",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu128" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
