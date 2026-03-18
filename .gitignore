@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Worktrees
+.worktrees/
+
 # Agent prompt files (generated per-session by launchers)
 CLAUDE.md
 AGENTS.md
