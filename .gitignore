@@ -17,5 +17,5 @@ CLAUDE.md
 AGENTS.md
 
 # Experiment artifacts
-.autoresearch/results.db
+.autoresearch/
 run.log

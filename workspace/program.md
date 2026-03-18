@@ -98,7 +98,7 @@ grep "^val_bpb:\|^peak_vram_mb:" run.log
 
 ## exp.md
 
-Create `exp.md` for each experiment. Write it before committing. Include:
+Create `exp.md` for each experiment. Write it before the run commit. Include:
 
 - **Hypothesis**: what you expect and why
 - **Reasoning**: mathematical derivation, parameter calculations, or conceptual argument
@@ -106,17 +106,23 @@ Create `exp.md` for each experiment. Write it before committing. Include:
 - **Changes**: which file and what changed
 - **Base**: parent commit hash and baseline val_bpb
 
-After the run, append a **Results** section with val_bpb, peak_vram_mb, status (keep/discard/crash), and brief analysis. Commit the update.
+After the run, append a **Results** section with val_bpb, peak_vram_mb, status (keep/discard/crash), and brief analysis. Then make a second commit with the completed results note.
 
 ## Experiment recording
 
-Record every experiment in the DB:
+Record each experiment once, after the results commit exists. Each DB row stores both the run commit and the later results commit:
 
 ```bash
-autoresearch record <commit> --status pending --description "one-line summary"
-python3 run.py train > run.log 2>&1
-autoresearch record <commit> --status success --run-log run.log   # or --status crash
+autoresearch record <run-commit> \
+  --result-commit <result-commit> \
+  --status success \
+  --decision keep|discard \
+  --description "one-line summary" \
+  --metric val_bpb=<value> \
+  --metric peak_vram_mb=<value>
 ```
+
+For NanoGPT, extract the numeric fields from the final summary block in `run.log` and pass them explicitly as repeated `--metric name=value` flags. Include all numeric summary fields, not just `val_bpb`.
 
 Browse experiments:
 
@@ -132,13 +138,13 @@ Loop indefinitely once setup is complete:
 1. Query `autoresearch summary` and read past exp.md via `autoresearch read <commit>` to understand what has been tried.
 2. Check the current git state.
 3. Edit `train.py` with one concrete idea. Write `exp.md` with hypothesis and reasoning. Think deeply and mathematically.
-4. Commit the change.
-5. Record: `autoresearch record <commit> --status pending --description "..."`.
-6. Run: `python3 run.py train > run.log 2>&1`.
-7. Check: `grep "^val_bpb:\|^peak_vram_mb:" run.log`.
-8. If grep is empty, inspect `tail -n 50 run.log`. Fix obvious mistakes and retry a small number of times. If the idea is broken, record with `--status crash` and move on.
-9. Update DB: `autoresearch record <commit> --status success --run-log run.log` (or `--status crash`). Append Results to exp.md and amend/follow-up the commit.
-10. Keep the commit only if `val_bpb` improved. If equal, worse, or crashed, revert to the previous good commit.
+4. Commit the runnable snapshot. Save the hash as the run commit.
+5. Run: `python3 run.py train > run.log 2>&1`.
+6. Check: `grep "^val_bpb:\|^peak_vram_mb:" run.log`.
+7. If grep is empty, inspect `tail -n 50 run.log`. Fix obvious mistakes and retry a small number of times. If the idea is broken, write the failure into `exp.md`, commit the results note, and record with `--status crash` or `--status timeout`.
+8. Append Results to `exp.md`, including the keep/discard decision. Commit that update. Save the hash as the result commit.
+9. Record once: `autoresearch record <run-commit> --result-commit <result-commit> --status success --decision keep|discard --description "..." --metric val_bpb=<...> --metric peak_vram_mb=<...> ...`.
+10. Keep the result commit only if `val_bpb` improved. If equal, worse, or crashed, revert to the previous good result commit.
 
 Each run should finish in about 5 minutes plus startup and evaluation overhead. If a run exceeds 10 minutes, kill it and treat it as a failure.
 
