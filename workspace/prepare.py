@@ -3,8 +3,8 @@ One-time data preparation for autoresearch experiments.
 Downloads data shards and trains a BPE tokenizer.
 
 Usage:
-    run from `autoresearch_runtime/` with `python prepare.py`                # full prep
-    run from `autoresearch_runtime/` with `python prepare.py --num-shards 8` # test subset
+    run from the task repo root with `python3 run.py prepare`                # full prep
+    run from the task repo root with `python3 run.py prepare --num-shards 8` # test subset
 
 Data and tokenizer are stored in ~/.cache/autoresearch/.
 """
@@ -203,7 +203,7 @@ def train_tokenizer():
     print(f"Tokenizer: sanity check passed (vocab_size={enc.n_vocab})")
 
 # ---------------------------------------------------------------------------
-# Runtime utilities (imported by train.py)
+# Runtime utilities (imported by workspace/train.py)
 # ---------------------------------------------------------------------------
 
 class Tokenizer:

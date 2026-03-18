@@ -1,7 +1,7 @@
 """
 Autoresearch pretraining script. Single-GPU, single-file.
 Cherry-picked and simplified from nanochat.
-Usage: run from `autoresearch_runtime/` with `uv run train.py`
+Usage: run from the task repo root with `python3 run.py train`
 """
 
 import os

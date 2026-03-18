@@ -2,21 +2,24 @@
 
 This repo is a self-contained task for autonomous training experiments.
 
+Your workspace is `workspace/`. Task execution is owned by `.runner/` and is invoked from the task repo root via `python3 run.py ...`. Experiment tracking is handled separately by the shared `autoresearch` CLI.
+
 ## Setup
 
 To set up a new experiment, work with the user to:
 
-1. Agree on a run tag based on today's date, such as `mar17`. The branch `autoresearch/<tag>` must not already exist.
-2. Start in an isolated worktree. If the user has not already created one, from this directory run:
+1. Agree on a run tag based on today's date, such as `mar17`. The branch `<tag>` must not already exist.
+2. Start in an isolated worktree. If the user has not already created one, from the task repo root run:
    ```bash
-   git worktree add .worktrees/<tag> -b autoresearch/<tag>
+   git worktree add .worktrees/<tag> -b <tag>
    ```
    Then work inside `.worktrees/<tag>/`. If you are already in a worktree, continue there.
 3. Read the in-scope files for full context:
   - `prepare.py` — fixed constants, tokenizer, dataloader, evaluation. Do not modify.
   - `train.py` — the only code file you modify.
   - `exp.md` — create for each experiment with hypothesis and reasoning.
-4. Verify the Modal cache exists. If data has not been prepared yet, run:
+  - `.runner/modal/pyproject.toml` from the repo root — remote runtime manifest. Read-only context.
+4. Verify the Modal cache exists. If data has not been prepared yet, from the task repo root run:
    ```bash
    python3 run.py prepare
    ```
@@ -52,7 +55,7 @@ PY
 
 ## Forbidden changes
 
-- Do not modify `prepare.py`, `run.py`, `task.toml`, or `pyproject.toml`.
+- Do not modify `prepare.py`, `run.py`, or anything under `.runner/`.
 - Do not install packages.
 - Do not modify the evaluation harness in `prepare.py`. `evaluate_bpb` is the ground-truth metric.
 
